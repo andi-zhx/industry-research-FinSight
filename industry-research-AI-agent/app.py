@@ -25,10 +25,14 @@ import ui_styles as ui
 
 # PDF转换工具
 try:
-    from utils.pdf_converter import convert_md_to_pdf, HAS_WEASYPRINT
-    HAS_PDF_CONVERTER = HAS_WEASYPRINT
+    from utils.pdf_converter import convert_md_to_pdf, HAS_FPDF
+    HAS_PDF_CONVERTER = HAS_FPDF
 except ImportError:
-    HAS_PDF_CONVERTER = False
+    try:
+        from utils.pdf_converter import convert_md_to_pdf
+        HAS_PDF_CONVERTER = True
+    except ImportError:
+        HAS_PDF_CONVERTER = False
 
 # Word转换工具
 try:
@@ -65,6 +69,13 @@ try:
     HAS_V3_WORKFLOW = True
 except ImportError:
     HAS_V3_WORKFLOW = False
+
+# V4.0 统一工作流（整合V2+V3+自动公司发现+图表生成）
+try:
+    from agent_system.workflows.industry_research_unified import run_industry_research_unified
+    HAS_UNIFIED_WORKFLOW = True
+except ImportError:
+    HAS_UNIFIED_WORKFLOW = False
 
 # 知识库引擎（RAG--knowledge_engine.py）
 try:
@@ -358,38 +369,34 @@ def render_console_page():
                 # 6. 年份
                 target_year = st.number_input("📅 目标年份", value=2025)
                 
-                # 7. PE级研报配置（新增）
+                # 7. PE级研报配置（升级版 - 自动发现公司）
                 st.markdown("🎯 **研报级别**")
                 report_level = st.radio(
                     "选择研报级别",
                     options=["标准版", "PE级专业版"],
                     index=0,
                     horizontal=True,
-                    help="PE级专业版包含：标的深拆、估值框架、微观风险、反共识观点"
+                    help="PE级专业版包含：自动发现产业链公司、标的深拆、估值框架、微观风险、反共识观点、数据图表"
                 )
                 
                 if report_level == "PE级专业版":
-                    st.markdown("🏢 **重点分析公司**")
-                    key_companies_input = st.text_input(
-                        "输入重点分析公司（用逗号分隔）",
-                        placeholder="例如：海康威视,大华股份,科大讯飞",
-                        help="输入2-3家重点公司进行深度拆解分析"
-                    )
-                    key_companies = [c.strip() for c in key_companies_input.split(",") if c.strip()] if key_companies_input else []
-                    
                     st.markdown("""
-                    <small style="color: #00D4FF;">
-                    📊 PE级专业版包含：<br>
-                    • 锚定型数据框架（Tier 1-4分层）<br>
-                    • 标的深拆（拆到骨头里的公司分析）<br>
-                    • 估值与回报框架（IRR/MOIC计算）<br>
-                    • 微观风险分析（项目级风险）<br>
-                    • 反共识观点（差异化判断）<br>
-                    • PE级评分报告
+                    <div style="background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 100%); padding: 15px; border-radius: 8px; border-left: 3px solid #00D4FF;">
+                    <small style="color: #E2E8F0;">
+                    <b style="color: #00D4FF;">🚀 PE级专业版功能：</b><br><br>
+                    <b>🔍 自动公司发现</b>：系统自动搜索并识别产业链各环节头部公司<br>
+                    <b>🏢 标的深拆</b>：对发现的关键公司进行“拆到骨头里”的深度分析<br>
+                    <b>💰 估值框架</b>：IRR/MOIC回报计算，情景分析<br>
+                    <b>⚠️ 微观风险</b>：项目级风险评估（流片失败率、客户集中度等）<br>
+                    <b>💡 反共识观点</b>：有立场的投资人视角<br>
+                    <b>📊 数据图表</b>：自动生成市场趋势、竞争格局、产业链利润分布等图表<br>
+                    <b>🏆 PE评分</b>：专业级研报质量评分（L1-L4）
                     </small>
+                    </div>
                     """, unsafe_allow_html=True)
-                else:
-                    key_companies = []
+                    
+                    # 图表生成选项
+                    enable_charts = st.checkbox("📊 生成数据可视化图表", value=True, help="自动生成市场趋势、竞争格局等图表")
                 
                 # 7. 知识库管理 
                 st.subheader("📚 研报知识库 (Knowledge Base)")
@@ -453,34 +460,62 @@ def render_console_page():
                             log_capture.start()
                         
                         # 根据研报级别选择不同的工作流
-                        if report_level == "PE级专业版" and HAS_V3_WORKFLOW:
+                        if report_level == "PE级专业版" and HAS_UNIFIED_WORKFLOW:
                             with st.status("正在调用PE级多智能体团队...", expanded=True):
                                 st.write("📋 Planner: 正在制定PE级研究计划...")
-                                st.write("🔍 Researcher: 正在收集锚定型数据（Tier 1-4）...")
-                                st.write("🏢 Deep Dive: 正在进行标的深拆分析...")
+                                st.write("🔍 Researcher: 正在收集行业数据...")
+                                st.write("🏢 Company Discovery: 正在自动发现产业链头部公司...")
+                                st.write("📊 Analyst: 正在进行深度数据分析...")
+                                st.write("🏢 Deep Dive: 正在对关键公司进行标的深拆...")
                                 st.write("💰 Valuation: 正在计算IRR/MOIC回报框架...")
                                 st.write("⚠️ Risk: 正在分析微观风险...")
                                 st.write("💡 Contrarian: 正在生成反共识观点...")
+                                st.write("📊 Charts: 正在生成数据可视化图表...")
                                 st.write("✍️ Writer: 正在撰写PE级深度报告...")
-                                st.write("📊 Scorer: 正在进行PE级质量评分...")
+                                st.write("🏆 Scorer: 正在进行PE级质量评分...")
                                 try:
-                                    result = run_industry_research_v3(
+                                    # 使用统一工作流，自动发现公司
+                                    result = run_industry_research_unified(
                                         industry=final_topic,
                                         province=sel_province,
                                         target_year=str(target_year),
                                         focus=focus_prompt,
-                                        max_revisions=2,
-                                        key_companies=key_companies if key_companies else None
+                                        output_dir=config.OUTPUT_DIR,
+                                        enable_pe_analysis=True,
+                                        enable_charts=enable_charts if 'enable_charts' in dir() else True,
+                                        max_revisions=2
                                     )
                                     if result.get("success"):
                                         st.session_state.ind_report = result.get("report", "")
-                                        st.session_state.pe_score = result.get("pe_score", 0)
-                                        st.session_state.report_level = result.get("report_level", "")
-                                        st.success(f"PE级研报生成完成！评分: {result.get('pe_score', 0):.1f}/100 ({result.get('report_level', '')})")
+                                        # 保存PE评分信息
+                                        pe_score_data = result.get("pe_score", {})
+                                        if isinstance(pe_score_data, dict):
+                                            st.session_state.pe_score = pe_score_data.get("total_score", 0)
+                                            st.session_state.report_level = pe_score_data.get("level", "")
+                                        else:
+                                            st.session_state.pe_score = pe_score_data if pe_score_data else 0
+                                            st.session_state.report_level = ""
+                                        # 保存发现的公司和图表
+                                        st.session_state.discovered_companies = result.get("discovered_companies", [])
+                                        st.session_state.generated_charts = result.get("charts", [])
+                                        
+                                        # 显示成功信息
+                                        success_msg = "PE级研报生成完成！"
+                                        if st.session_state.pe_score > 0:
+                                            success_msg += f" 评分: {st.session_state.pe_score:.1f}/100"
+                                        if st.session_state.report_level:
+                                            success_msg += f" ({st.session_state.report_level})"
+                                        if st.session_state.discovered_companies:
+                                            success_msg += f" | 发现公司: {len(st.session_state.discovered_companies)}家"
+                                        if st.session_state.generated_charts:
+                                            success_msg += f" | 生成图表: {len(st.session_state.generated_charts)}个"
+                                        st.success(success_msg)
                                     else:
                                         st.error(f"运行出错: {result.get('error', '未知错误')}")
                                 except Exception as e:
                                     st.error(f"运行出错: {e}")
+                                    import traceback
+                                    st.code(traceback.format_exc())
                                 finally:
                                     if HAS_LOG_CAPTURE:
                                         log_capture.stop()
@@ -516,20 +551,50 @@ def render_console_page():
                     
                     # 检查是否是PE级研报
                     has_pe_score = 'pe_score' in st.session_state and st.session_state.pe_score > 0
+                    has_discovered_companies = 'discovered_companies' in st.session_state and st.session_state.discovered_companies
+                    has_charts = 'generated_charts' in st.session_state and st.session_state.generated_charts
                     
                     if has_pe_score:
-                        col1, col2, col3, col4 = st.columns(4)
+                        col1, col2, col3, col4, col5, col6 = st.columns(6)
                         with col1:
-                            st.metric("报告字数", f"{len(report_content):,} 字符")
+                            st.metric("报告字数", f"{len(report_content):,}")
                         with col2:
                             table_count = report_content.count("|") // 10
-                            st.metric("数据表格", f"约 {table_count} 个")
+                            st.metric("数据表格", f"{table_count}个")
                         with col3:
                             pe_score = st.session_state.get('pe_score', 0)
-                            st.metric("PE级评分", f"{pe_score:.1f}/100")
+                            st.metric("PE评分", f"{pe_score:.1f}")
                         with col4:
                             report_level = st.session_state.get('report_level', '')
-                            st.metric("研报等级", report_level)
+                            st.metric("等级", report_level)
+                        with col5:
+                            company_count = len(st.session_state.get('discovered_companies', []))
+                            st.metric("发现公司", f"{company_count}家")
+                        with col6:
+                            chart_count = len(st.session_state.get('generated_charts', []))
+                            st.metric("图表", f"{chart_count}个")
+                        
+                        # 显示发现的公司列表
+                        if has_discovered_companies:
+                            with st.expander("🏢 发现的产业链公司", expanded=False):
+                                companies = st.session_state.discovered_companies
+                                if isinstance(companies, list) and len(companies) > 0:
+                                    st.markdown(f"**共发现 {len(companies)} 家公司：**")
+                                    company_text = ", ".join(companies[:20])
+                                    if len(companies) > 20:
+                                        company_text += f" ... 等{len(companies)}家"
+                                    st.write(company_text)
+                        
+                        # 显示生成的图表
+                        if has_charts:
+                            with st.expander("📊 生成的数据图表", expanded=False):
+                                charts = st.session_state.generated_charts
+                                for chart_name, chart_path in charts:
+                                    st.markdown(f"**{chart_name}**")
+                                    if os.path.exists(chart_path):
+                                        st.image(chart_path, use_container_width=True)
+                                    else:
+                                        st.warning(f"图表文件不存在: {chart_path}")
                     else:
                         col1, col2, col3 = st.columns(3)
                         with col1:

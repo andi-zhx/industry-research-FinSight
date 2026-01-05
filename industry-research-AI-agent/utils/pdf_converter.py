@@ -1,20 +1,22 @@
 # utils/pdf_converter.py
 """
 Markdown转PDF转换器
+使用fpdf2库，无需系统依赖
 支持中文字体、表格渲染、专业排版
 """
 
 import os
+import re
 import tempfile
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
 
 # 尝试导入PDF生成库
 try:
-    from weasyprint import HTML, CSS
-    HAS_WEASYPRINT = True
+    from fpdf import FPDF
+    HAS_FPDF = True
 except ImportError:
-    HAS_WEASYPRINT = False
+    HAS_FPDF = False
 
 try:
     import markdown
@@ -23,292 +25,315 @@ except ImportError:
     HAS_MARKDOWN = False
 
 
-def get_pdf_css() -> str:
+class FinSightPDF(FPDF):
     """
-    获取PDF样式表
-    专业金融研报风格
+    FinSight专业研报PDF生成器
     """
-    return """
-    @page {
-        size: A4;
-        margin: 2cm 2.5cm;
-        @top-center {
-            content: "FinSight AI 行业研究报告";
-            font-size: 9pt;
-            color: #666;
-        }
-        @bottom-center {
-            content: "第 " counter(page) " 页";
-            font-size: 9pt;
-            color: #666;
-        }
-    }
     
-    body {
-        font-family: "Noto Sans SC", "Microsoft YaHei", "SimHei", sans-serif;
-        font-size: 11pt;
-        line-height: 1.8;
-        color: #333;
-        text-align: justify;
-    }
+    def __init__(self, title: str = "行业研究报告", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.title = title
+        self.chapter_num = 0
+        
+        # 设置页面
+        self.set_auto_page_break(auto=True, margin=25)
+        
+        # 添加中文字体支持
+        self._setup_fonts()
     
-    h1 {
-        font-size: 22pt;
-        font-weight: 700;
-        color: #1a365d;
-        text-align: center;
-        margin-top: 0;
-        margin-bottom: 1.5em;
-        padding-bottom: 0.5em;
-        border-bottom: 3px solid #2563eb;
-    }
+    def _setup_fonts(self):
+        """设置字体"""
+        # 使用内置字体，支持基本字符
+        # 对于中文，使用Unicode字体
+        try:
+            # 尝试添加中文字体
+            font_path = "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"
+            if os.path.exists(font_path):
+                self.add_font("NotoSans", "", font_path, uni=True)
+                self.add_font("NotoSans", "B", font_path, uni=True)
+            else:
+                # 使用DejaVu作为备选
+                pass
+        except Exception:
+            pass
     
-    h2 {
-        font-size: 16pt;
-        font-weight: 600;
-        color: #1e40af;
-        margin-top: 1.5em;
-        margin-bottom: 0.8em;
-        padding-bottom: 0.3em;
-        border-bottom: 2px solid #3b82f6;
-        page-break-after: avoid;
-    }
+    def header(self):
+        """页眉"""
+        if self.page_no() > 1:  # 封面不显示页眉
+            self.set_font('Helvetica', 'I', 9)
+            self.set_text_color(128, 128, 128)
+            self.cell(0, 10, 'FinSight AI Industry Research Report', align='C')
+            self.ln(5)
+            self.set_draw_color(200, 200, 200)
+            self.line(10, 20, 200, 20)
+            self.ln(10)
     
-    h3 {
-        font-size: 13pt;
-        font-weight: 600;
-        color: #1e3a8a;
-        margin-top: 1.2em;
-        margin-bottom: 0.6em;
-        page-break-after: avoid;
-    }
+    def footer(self):
+        """页脚"""
+        if self.page_no() > 1:  # 封面不显示页脚
+            self.set_y(-15)
+            self.set_font('Helvetica', 'I', 9)
+            self.set_text_color(128, 128, 128)
+            self.cell(0, 10, f'Page {self.page_no()}', align='C')
     
-    h4 {
-        font-size: 12pt;
-        font-weight: 600;
-        color: #1e40af;
-        margin-top: 1em;
-        margin-bottom: 0.5em;
-    }
+    def add_cover_page(self, title: str, province: str = "", industry: str = "", year: str = ""):
+        """添加封面页"""
+        self.add_page()
+        
+        # 背景色块
+        self.set_fill_color(30, 64, 175)  # 深蓝色
+        self.rect(0, 0, 210, 100, 'F')
+        
+        # 标题
+        self.set_y(40)
+        self.set_font('Helvetica', 'B', 24)
+        self.set_text_color(255, 255, 255)
+        
+        # 处理标题
+        report_title = title
+        if province and industry and year:
+            report_title = f"{year} {province} {industry}"
+        
+        self.multi_cell(0, 12, report_title, align='C')
+        
+        # 副标题
+        self.set_y(70)
+        self.set_font('Helvetica', '', 14)
+        self.cell(0, 10, "Industry Research Report", align='C')
+        
+        # 分隔线
+        self.set_y(110)
+        self.set_draw_color(59, 130, 246)
+        self.set_line_width(1)
+        self.line(60, 110, 150, 110)
+        
+        # 报告信息
+        self.set_y(130)
+        self.set_font('Helvetica', '', 11)
+        self.set_text_color(100, 100, 100)
+        self.cell(0, 8, "FinSight AI Agent", align='C')
+        self.ln()
+        self.cell(0, 8, f"Report Date: {datetime.now().strftime('%Y-%m-%d')}", align='C')
+        self.ln()
+        self.ln(20)
+        
+        # 免责声明
+        self.set_font('Helvetica', 'I', 9)
+        self.set_text_color(150, 150, 150)
+        self.multi_cell(0, 5, 
+            "This report is automatically generated by AI Agent for reference only.\n"
+            "Investment decisions should be based on independent professional judgment.",
+            align='C')
     
-    p {
-        margin-bottom: 0.8em;
-        text-indent: 2em;
-    }
+    def add_chapter_title(self, title: str, level: int = 1):
+        """添加章节标题"""
+        self.chapter_num += 1
+        
+        if level == 1:
+            self.set_font('Helvetica', 'B', 16)
+            self.set_text_color(30, 64, 175)
+            self.ln(10)
+            self.cell(0, 10, title, ln=True)
+            self.set_draw_color(59, 130, 246)
+            self.set_line_width(0.5)
+            self.line(10, self.get_y(), 200, self.get_y())
+            self.ln(5)
+        elif level == 2:
+            self.set_font('Helvetica', 'B', 14)
+            self.set_text_color(30, 58, 138)
+            self.ln(8)
+            self.cell(0, 8, title, ln=True)
+            self.ln(3)
+        elif level == 3:
+            self.set_font('Helvetica', 'B', 12)
+            self.set_text_color(30, 64, 175)
+            self.ln(5)
+            self.cell(0, 7, title, ln=True)
+            self.ln(2)
+        else:
+            self.set_font('Helvetica', 'B', 11)
+            self.set_text_color(71, 85, 105)
+            self.ln(4)
+            self.cell(0, 6, title, ln=True)
+            self.ln(2)
     
-    /* 表格样式 - 专业金融风格 */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1.5em 0;
-        font-size: 10pt;
-        page-break-inside: avoid;
-    }
+    def add_paragraph(self, text: str):
+        """添加段落"""
+        self.set_font('Helvetica', '', 10)
+        self.set_text_color(51, 51, 51)
+        
+        # 处理文本中的特殊格式
+        text = self._process_text(text)
+        
+        self.multi_cell(0, 6, text)
+        self.ln(3)
     
-    th {
-        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-        color: white;
-        font-weight: 600;
-        padding: 10px 12px;
-        text-align: left;
-        border: 1px solid #1e40af;
-    }
+    def _process_text(self, text: str) -> str:
+        """处理文本格式"""
+        # 移除Markdown格式标记
+        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)  # 粗体
+        text = re.sub(r'\*(.+?)\*', r'\1', text)  # 斜体
+        text = re.sub(r'`(.+?)`', r'\1', text)  # 代码
+        text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)  # 链接
+        return text
     
-    td {
-        padding: 8px 12px;
-        border: 1px solid #e5e7eb;
-        vertical-align: top;
-    }
+    def add_table(self, headers: List[str], data: List[List[str]]):
+        """添加表格"""
+        self.ln(5)
+        
+        # 计算列宽
+        page_width = 190  # A4页面宽度减去边距
+        col_count = len(headers)
+        col_width = page_width / col_count
+        
+        # 表头
+        self.set_font('Helvetica', 'B', 9)
+        self.set_fill_color(30, 64, 175)
+        self.set_text_color(255, 255, 255)
+        
+        for header in headers:
+            self.cell(col_width, 8, str(header)[:20], border=1, fill=True, align='C')
+        self.ln()
+        
+        # 表格数据
+        self.set_font('Helvetica', '', 9)
+        self.set_text_color(51, 51, 51)
+        
+        fill = False
+        for row in data:
+            if fill:
+                self.set_fill_color(248, 250, 252)
+            else:
+                self.set_fill_color(255, 255, 255)
+            
+            for i, cell in enumerate(row):
+                cell_text = str(cell)[:25] if cell else ""
+                self.cell(col_width, 7, cell_text, border=1, fill=True, align='C')
+            self.ln()
+            fill = not fill
+        
+        self.ln(5)
     
-    tr:nth-child(even) {
-        background-color: #f8fafc;
-    }
+    def add_bullet_list(self, items: List[str]):
+        """添加项目列表"""
+        self.set_font('Helvetica', '', 10)
+        self.set_text_color(51, 51, 51)
+        
+        for item in items:
+            item_text = self._process_text(item)
+            self.cell(5, 6, chr(149))  # 项目符号
+            self.multi_cell(0, 6, item_text)
+        
+        self.ln(3)
     
-    tr:hover {
-        background-color: #eff6ff;
-    }
-    
-    /* 列表样式 */
-    ul, ol {
-        margin: 0.8em 0;
-        padding-left: 2em;
-    }
-    
-    li {
-        margin-bottom: 0.4em;
-        text-indent: 0;
-    }
-    
-    /* 引用块 */
-    blockquote {
-        border-left: 4px solid #3b82f6;
-        padding: 0.5em 1em;
-        margin: 1em 0;
-        background-color: #eff6ff;
-        color: #1e40af;
-        font-style: italic;
-    }
-    
-    /* 代码块 */
-    code {
-        background-color: #f1f5f9;
-        padding: 0.2em 0.4em;
-        border-radius: 3px;
-        font-family: "JetBrains Mono", "Consolas", monospace;
-        font-size: 0.9em;
-    }
-    
-    pre {
-        background-color: #1e293b;
-        color: #e2e8f0;
-        padding: 1em;
-        border-radius: 6px;
-        overflow-x: auto;
-        font-size: 9pt;
-    }
-    
-    pre code {
-        background: none;
-        padding: 0;
-        color: inherit;
-    }
-    
-    /* 强调文本 */
-    strong {
-        color: #1e40af;
-        font-weight: 600;
-    }
-    
-    em {
-        color: #475569;
-    }
-    
-    /* 链接 */
-    a {
-        color: #2563eb;
-        text-decoration: none;
-    }
-    
-    /* 分割线 */
-    hr {
-        border: none;
-        border-top: 1px solid #e5e7eb;
-        margin: 2em 0;
-    }
-    
-    /* 封面页样式 */
-    .cover-page {
-        text-align: center;
-        padding-top: 30%;
-        page-break-after: always;
-    }
-    
-    .cover-title {
-        font-size: 28pt;
-        font-weight: 700;
-        color: #1e40af;
-        margin-bottom: 0.5em;
-    }
-    
-    .cover-subtitle {
-        font-size: 14pt;
-        color: #64748b;
-        margin-bottom: 2em;
-    }
-    
-    .cover-info {
-        font-size: 11pt;
-        color: #475569;
-        margin-top: 3em;
-    }
-    
-    /* 目录样式 */
-    .toc {
-        page-break-after: always;
-    }
-    
-    .toc h2 {
-        text-align: center;
-        border-bottom: none;
-    }
-    
-    .toc ul {
-        list-style: none;
-        padding-left: 0;
-    }
-    
-    .toc li {
-        margin-bottom: 0.5em;
-        border-bottom: 1px dotted #ccc;
-        padding-bottom: 0.3em;
-    }
-    
-    /* 风险提示框 */
-    .risk-warning {
-        background-color: #fef3c7;
-        border: 1px solid #f59e0b;
-        border-left: 4px solid #f59e0b;
-        padding: 1em;
-        margin: 1em 0;
-        border-radius: 4px;
-    }
-    
-    /* 重要结论框 */
-    .key-finding {
-        background-color: #dbeafe;
-        border: 1px solid #3b82f6;
-        border-left: 4px solid #3b82f6;
-        padding: 1em;
-        margin: 1em 0;
-        border-radius: 4px;
-    }
-    
-    /* 页面分隔 */
-    .page-break {
-        page-break-before: always;
-    }
-    """
+    def add_quote(self, text: str):
+        """添加引用块"""
+        self.set_fill_color(239, 246, 255)
+        self.set_draw_color(59, 130, 246)
+        
+        # 绘制左边框
+        y_start = self.get_y()
+        self.set_x(15)
+        
+        self.set_font('Helvetica', 'I', 10)
+        self.set_text_color(30, 64, 175)
+        
+        self.multi_cell(180, 6, self._process_text(text), fill=True)
+        
+        y_end = self.get_y()
+        self.set_line_width(1)
+        self.line(12, y_start, 12, y_end)
+        
+        self.ln(5)
 
 
-def markdown_to_html(md_content: str, title: str = "行业研究报告") -> str:
+def parse_markdown_content(md_content: str) -> List[Tuple[str, str, any]]:
     """
-    将Markdown转换为HTML
-    """
-    if not HAS_MARKDOWN:
-        # 简单的Markdown转换
-        html_content = md_content
-        html_content = html_content.replace('\n\n', '</p><p>')
-        html_content = html_content.replace('\n', '<br>')
-        html_content = f'<p>{html_content}</p>'
-    else:
-        # 使用markdown库转换
-        md = markdown.Markdown(
-            extensions=[
-                'tables',
-                'fenced_code',
-                'toc',
-                'nl2br',
-                'sane_lists'
-            ]
-        )
-        html_content = md.convert(md_content)
+    解析Markdown内容为结构化元素
     
-    # 构建完整HTML文档
-    html_doc = f"""
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{title}</title>
-    </head>
-    <body>
-        {html_content}
-    </body>
-    </html>
+    Returns:
+        List of tuples: (element_type, content, extra_data)
     """
+    elements = []
+    lines = md_content.split('\n')
     
-    return html_doc
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # 跳过空行
+        if not line:
+            i += 1
+            continue
+        
+        # 标题
+        if line.startswith('#'):
+            level = len(line) - len(line.lstrip('#'))
+            title = line.lstrip('#').strip()
+            elements.append(('heading', title, level))
+            i += 1
+            continue
+        
+        # 表格
+        if '|' in line and i + 1 < len(lines) and '---' in lines[i + 1]:
+            # 解析表头
+            headers = [h.strip() for h in line.split('|') if h.strip()]
+            i += 2  # 跳过分隔行
+            
+            # 解析数据行
+            data = []
+            while i < len(lines) and '|' in lines[i]:
+                row = [c.strip() for c in lines[i].split('|') if c.strip()]
+                if row:
+                    data.append(row)
+                i += 1
+            
+            elements.append(('table', headers, data))
+            continue
+        
+        # 列表项
+        if line.startswith('- ') or line.startswith('* ') or re.match(r'^\d+\.', line):
+            items = []
+            while i < len(lines):
+                l = lines[i].strip()
+                if l.startswith('- ') or l.startswith('* '):
+                    items.append(l[2:])
+                elif re.match(r'^\d+\.', l):
+                    items.append(re.sub(r'^\d+\.\s*', '', l))
+                elif l and not l.startswith('#') and '|' not in l:
+                    # 继续上一个列表项
+                    if items:
+                        items[-1] += ' ' + l
+                else:
+                    break
+                i += 1
+            
+            if items:
+                elements.append(('list', items, None))
+            continue
+        
+        # 引用
+        if line.startswith('>'):
+            quote_lines = []
+            while i < len(lines) and lines[i].strip().startswith('>'):
+                quote_lines.append(lines[i].strip()[1:].strip())
+                i += 1
+            elements.append(('quote', ' '.join(quote_lines), None))
+            continue
+        
+        # 普通段落
+        para_lines = [line]
+        i += 1
+        while i < len(lines):
+            l = lines[i].strip()
+            if not l or l.startswith('#') or l.startswith('-') or l.startswith('*') or l.startswith('>') or '|' in l:
+                break
+            para_lines.append(l)
+            i += 1
+        
+        elements.append(('paragraph', ' '.join(para_lines), None))
+    
+    return elements
 
 
 def convert_md_to_pdf(
@@ -335,47 +360,54 @@ def convert_md_to_pdf(
     Returns:
         PDF文件的字节内容
     """
-    if not HAS_WEASYPRINT:
-        raise ImportError("需要安装weasyprint库: pip install weasyprint")
+    if not HAS_FPDF:
+        raise ImportError("需要安装fpdf2库: pip install fpdf2")
     
-    # 构建封面
-    cover_html = ""
+    # 创建PDF文档
+    pdf = FinSightPDF(title=title)
+    
+    # 添加封面
     if add_cover:
-        report_title = f"{year}年{province}{industry}行业研究报告" if province and industry else title
-        cover_html = f"""
-        <div class="cover-page">
-            <div class="cover-title">{report_title}</div>
-            <div class="cover-subtitle">深度行业研究报告</div>
-            <div class="cover-info">
-                <p>FinSight AI Agent</p>
-                <p>报告日期：{datetime.now().strftime('%Y年%m月%d日')}</p>
-                <p style="margin-top: 2em; font-size: 9pt; color: #94a3b8;">
-                    本报告由AI智能体自动生成，仅供参考
-                </p>
-            </div>
-        </div>
-        """
+        pdf.add_cover_page(title, province, industry, year)
     
-    # 转换Markdown为HTML
-    html_content = markdown_to_html(md_content, title)
+    # 添加内容页
+    pdf.add_page()
     
-    # 在body开头插入封面
-    if add_cover:
-        html_content = html_content.replace('<body>', f'<body>{cover_html}')
+    # 解析Markdown内容
+    elements = parse_markdown_content(md_content)
     
-    # 获取CSS样式
-    css = CSS(string=get_pdf_css())
+    # 渲染元素
+    for elem_type, content, extra in elements:
+        try:
+            if elem_type == 'heading':
+                pdf.add_chapter_title(content, extra)
+            elif elem_type == 'paragraph':
+                pdf.add_paragraph(content)
+            elif elem_type == 'table':
+                pdf.add_table(content, extra)
+            elif elem_type == 'list':
+                pdf.add_bullet_list(content)
+            elif elem_type == 'quote':
+                pdf.add_quote(content)
+        except Exception as e:
+            # 跳过渲染失败的元素
+            print(f"渲染元素失败: {elem_type}, {e}")
+            continue
     
-    # 生成PDF
-    html = HTML(string=html_content)
-    pdf_bytes = html.write_pdf(stylesheets=[css])
-    
-    # 如果指定了输出路径，保存文件
+    # 输出PDF
     if output_path:
-        with open(output_path, 'wb') as f:
-            f.write(pdf_bytes)
-    
-    return pdf_bytes
+        pdf.output(output_path)
+        with open(output_path, 'rb') as f:
+            return f.read()
+    else:
+        # 输出到临时文件
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
+            temp_path = f.name
+        pdf.output(temp_path)
+        with open(temp_path, 'rb') as f:
+            pdf_bytes = f.read()
+        os.unlink(temp_path)
+        return pdf_bytes
 
 
 def convert_md_file_to_pdf(
@@ -385,20 +417,10 @@ def convert_md_file_to_pdf(
 ) -> bytes:
     """
     将Markdown文件转换为PDF
-    
-    Args:
-        md_file_path: Markdown文件路径
-        output_path: 输出PDF文件路径（可选，默认同名.pdf）
-        **kwargs: 传递给convert_md_to_pdf的其他参数
-    
-    Returns:
-        PDF文件的字节内容
     """
-    # 读取Markdown文件
     with open(md_file_path, 'r', encoding='utf-8') as f:
         md_content = f.read()
     
-    # 如果没有指定输出路径，使用同名.pdf
     if not output_path:
         output_path = md_file_path.rsplit('.', 1)[0] + '.pdf'
     
@@ -406,7 +428,6 @@ def convert_md_file_to_pdf(
     filename = os.path.basename(md_file_path)
     parts = filename.replace('.md', '').split('_')
     
-    # 尝试解析文件名中的年份、省份、行业
     year = kwargs.get('year', '')
     province = kwargs.get('province', '')
     industry = kwargs.get('industry', '')
@@ -428,73 +449,42 @@ def convert_md_file_to_pdf(
     )
 
 
-# 简化的备用方案（不依赖weasyprint）
-def simple_md_to_pdf(md_content: str, output_path: str) -> bool:
-    """
-    简化的Markdown转PDF方案
-    使用系统命令行工具
-    """
-    try:
-        # 创建临时HTML文件
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
-            html = markdown_to_html(md_content)
-            # 添加内联样式
-            styled_html = html.replace('<head>', f'<head><style>{get_pdf_css()}</style>')
-            f.write(styled_html)
-            temp_html = f.name
-        
-        # 尝试使用manus-md-to-pdf命令
-        import subprocess
-        result = subprocess.run(
-            ['manus-md-to-pdf', temp_html, output_path],
-            capture_output=True,
-            text=True
-        )
-        
-        # 清理临时文件
-        os.unlink(temp_html)
-        
-        return result.returncode == 0
-        
-    except Exception as e:
-        print(f"PDF转换失败: {e}")
-        return False
-
-
 if __name__ == "__main__":
     # 测试代码
     test_md = """
-# 测试报告
+# Test Report
 
-## 第一章 概述
+## Chapter 1: Overview
 
-这是一个测试段落。
+This is a test paragraph with some content.
 
-### 1.1 背景
+### 1.1 Background
 
-| 指标 | 数值 | 说明 |
-|------|------|------|
-| 市场规模 | 1000亿 | 2024年 |
-| 增长率 | 15% | 年均 |
+| Metric | Value | Note |
+|--------|-------|------|
+| Market Size | 100B | 2024 |
+| Growth Rate | 15% | Annual |
 
-## 第二章 分析
+## Chapter 2: Analysis
 
-**重要结论**：这是一个重要的发现。
+**Key Finding**: This is an important discovery.
 
-- 要点1
-- 要点2
-- 要点3
+- Point 1
+- Point 2
+- Point 3
+
+> This is a quote block with important information.
     """
     
     try:
         pdf_bytes = convert_md_to_pdf(
             test_md,
             output_path="test_report.pdf",
-            title="测试报告",
-            province="浙江省",
-            industry="人工智能",
+            title="Test Report",
+            province="Zhejiang",
+            industry="AI",
             year="2025"
         )
-        print(f"PDF生成成功，大小: {len(pdf_bytes)} bytes")
+        print(f"PDF generated successfully, size: {len(pdf_bytes)} bytes")
     except Exception as e:
-        print(f"PDF生成失败: {e}")
+        print(f"PDF generation failed: {e}")

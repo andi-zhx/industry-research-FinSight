@@ -42,3 +42,4 @@ matplotlib
 tenacity
 httpx
 python-docx>=0.8.11
+fpdf2>=2.7.0
