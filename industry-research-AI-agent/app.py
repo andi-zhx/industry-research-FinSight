@@ -52,6 +52,13 @@ except ImportError as e:
     HAS_BACKEND = False
     BACKEND_ERROR = str(e)
 
+# V2.0 增强版工作流
+try:
+    from agent_system.workflows.industry_research_v2 import run_industry_research_v2
+    HAS_V2_WORKFLOW = True
+except ImportError:
+    HAS_V2_WORKFLOW = False
+
 # 知识库引擎（RAG--knowledge_engine.py）
 try:
     from agent_system.knowledge import kb_manager
