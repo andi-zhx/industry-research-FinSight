@@ -41,3 +41,4 @@ matplotlib
 # 其他
 tenacity
 httpx
+python-docx>=0.8.11

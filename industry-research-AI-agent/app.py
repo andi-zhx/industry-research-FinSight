@@ -30,6 +30,13 @@ try:
 except ImportError:
     HAS_PDF_CONVERTER = False
 
+# Word转换工具
+try:
+    from utils.word_converter import convert_md_to_word, HAS_DOCX
+    HAS_WORD_CONVERTER = HAS_DOCX
+except ImportError:
+    HAS_WORD_CONVERTER = False
+
 # 后端入口（Facade）
 try:
     import main
@@ -412,15 +419,17 @@ def render_console_page():
                     st.divider()
                     
                     # 下载按钮区域
-                    col_md, col_pdf = st.columns(2)
+                    st.markdown("#### 📥 报告下载")
+                    col_md, col_pdf, col_word = st.columns(3)
                     
                     with col_md:
                         st.download_button(
-                            label="📥 下载 Markdown",
+                            label="📄 下载 Markdown",
                             data=report_content,
                             file_name=f"{target_year}_{sel_province}_{final_topic}_行业研究报告.md",
                             mime="text/markdown",
-                            use_container_width=True
+                            use_container_width=True,
+                            help="原始 Markdown 格式，可用于编辑和二次加工"
                         )
                     
                     with col_pdf:
@@ -435,16 +444,41 @@ def render_console_page():
                                     add_cover=True
                                 )
                                 st.download_button(
-                                    label="📄 下载 PDF",
+                                    label="📕 下载 PDF",
                                     data=pdf_bytes,
                                     file_name=f"{target_year}_{sel_province}_{final_topic}_行业研究报告.pdf",
                                     mime="application/pdf",
-                                    use_container_width=True
+                                    use_container_width=True,
+                                    help="专业排版 PDF 格式，包含封面页"
                                 )
                             except Exception as e:
                                 st.warning(f"PDF生成失败: {e}")
                         else:
                             st.info("💡 安装weasyprint启用PDF导出")
+                    
+                    with col_word:
+                        if HAS_WORD_CONVERTER:
+                            try:
+                                word_bytes = convert_md_to_word(
+                                    md_content=report_content,
+                                    title=f"{final_topic}行业研究报告",
+                                    province=sel_province,
+                                    industry=final_topic,
+                                    year=str(target_year),
+                                    add_cover=True
+                                )
+                                st.download_button(
+                                    label="📝 下载 Word",
+                                    data=word_bytes,
+                                    file_name=f"{target_year}_{sel_province}_{final_topic}_行业研究报告.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    use_container_width=True,
+                                    help="Word 格式，方便编辑和分享"
+                                )
+                            except Exception as e:
+                                st.warning(f"Word生成失败: {e}")
+                        else:
+                            st.info("💡 安装python-docx启用Word导出")
                     
                     st.divider()
                     
