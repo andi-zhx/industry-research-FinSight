@@ -59,6 +59,13 @@ try:
 except ImportError:
     HAS_V2_WORKFLOW = False
 
+# V3.0 PE级专业版工作流
+try:
+    from agent_system.workflows.industry_research_v3 import run_industry_research_v3
+    HAS_V3_WORKFLOW = True
+except ImportError:
+    HAS_V3_WORKFLOW = False
+
 # 知识库引擎（RAG--knowledge_engine.py）
 try:
     from agent_system.knowledge import kb_manager
@@ -351,6 +358,39 @@ def render_console_page():
                 # 6. 年份
                 target_year = st.number_input("📅 目标年份", value=2025)
                 
+                # 7. PE级研报配置（新增）
+                st.markdown("🎯 **研报级别**")
+                report_level = st.radio(
+                    "选择研报级别",
+                    options=["标准版", "PE级专业版"],
+                    index=0,
+                    horizontal=True,
+                    help="PE级专业版包含：标的深拆、估值框架、微观风险、反共识观点"
+                )
+                
+                if report_level == "PE级专业版":
+                    st.markdown("🏢 **重点分析公司**")
+                    key_companies_input = st.text_input(
+                        "输入重点分析公司（用逗号分隔）",
+                        placeholder="例如：海康威视,大华股份,科大讯飞",
+                        help="输入2-3家重点公司进行深度拆解分析"
+                    )
+                    key_companies = [c.strip() for c in key_companies_input.split(",") if c.strip()] if key_companies_input else []
+                    
+                    st.markdown("""
+                    <small style="color: #00D4FF;">
+                    📊 PE级专业版包含：<br>
+                    • 锚定型数据框架（Tier 1-4分层）<br>
+                    • 标的深拆（拆到骨头里的公司分析）<br>
+                    • 估值与回报框架（IRR/MOIC计算）<br>
+                    • 微观风险分析（项目级风险）<br>
+                    • 反共识观点（差异化判断）<br>
+                    • PE级评分报告
+                    </small>
+                    """, unsafe_allow_html=True)
+                else:
+                    key_companies = []
+                
                 # 7. 知识库管理 
                 st.subheader("📚 研报知识库 (Knowledge Base)")
                 
@@ -396,7 +436,13 @@ def render_console_page():
                     time.sleep(1)
                     st.rerun()
     
-                if st.button("🚀 生成深度研报", use_container_width=True):
+                # 根据研报级别显示不同的按钮
+                if report_level == "PE级专业版":
+                    button_label = "🚀 生成PE级深度研报"
+                else:
+                    button_label = "🚀 生成深度研报"
+                
+                if st.button(button_label, use_container_width=True):
                     if not HAS_BACKEND:
                         st.error("无法调用后端，请检查 main.py")
                     else:
@@ -406,40 +452,93 @@ def render_console_page():
                             log_capture.clear()
                             log_capture.start()
                         
-                        with st.status("正在调用多智能体团队...", expanded=True):
-                            st.write("📋 Planner: 正在基于六大维度规划研究蓝图...")
-                            st.write("🔍 Researcher: 正在搜集财务、政策、产业链数据...")
-                            st.write("🔗 Supply Chain Analyst: 正在深度分析产业链结构...")
-                            st.write("📊 Analyst: 正在进行六维度综合分析...")
-                            st.write("✍️ Writer: 正在撰写深度分析报告...")
-                            st.write("🔍 Reviewer: 正在进行质量审核...")
-                            try:
-                                res = main.run_investment_analysis(
-                                    final_topic, sel_province, str(target_year), focus_prompt
-                                )
-                                st.session_state.ind_report = res
-                                st.success("研报生成完成！")
-                            except Exception as e:
-                                st.error(f"运行出错: {e}")
-                            finally:
-                                # 停止日志捕获并保存日志
-                                if HAS_LOG_CAPTURE:
-                                    log_capture.stop()
-                                    st.session_state.run_logs = log_capture.get_logs(max_lines=200)
+                        # 根据研报级别选择不同的工作流
+                        if report_level == "PE级专业版" and HAS_V3_WORKFLOW:
+                            with st.status("正在调用PE级多智能体团队...", expanded=True):
+                                st.write("📋 Planner: 正在制定PE级研究计划...")
+                                st.write("🔍 Researcher: 正在收集锚定型数据（Tier 1-4）...")
+                                st.write("🏢 Deep Dive: 正在进行标的深拆分析...")
+                                st.write("💰 Valuation: 正在计算IRR/MOIC回报框架...")
+                                st.write("⚠️ Risk: 正在分析微观风险...")
+                                st.write("💡 Contrarian: 正在生成反共识观点...")
+                                st.write("✍️ Writer: 正在撰写PE级深度报告...")
+                                st.write("📊 Scorer: 正在进行PE级质量评分...")
+                                try:
+                                    result = run_industry_research_v3(
+                                        industry=final_topic,
+                                        province=sel_province,
+                                        target_year=str(target_year),
+                                        focus=focus_prompt,
+                                        max_revisions=2,
+                                        key_companies=key_companies if key_companies else None
+                                    )
+                                    if result.get("success"):
+                                        st.session_state.ind_report = result.get("report", "")
+                                        st.session_state.pe_score = result.get("pe_score", 0)
+                                        st.session_state.report_level = result.get("report_level", "")
+                                        st.success(f"PE级研报生成完成！评分: {result.get('pe_score', 0):.1f}/100 ({result.get('report_level', '')})")
+                                    else:
+                                        st.error(f"运行出错: {result.get('error', '未知错误')}")
+                                except Exception as e:
+                                    st.error(f"运行出错: {e}")
+                                finally:
+                                    if HAS_LOG_CAPTURE:
+                                        log_capture.stop()
+                                        st.session_state.run_logs = log_capture.get_logs(max_lines=200)
+                        else:
+                            # 标准版工作流
+                            with st.status("正在调用多智能体团队...", expanded=True):
+                                st.write("📋 Planner: 正在基于六大维度规划研究蓝图...")
+                                st.write("🔍 Researcher: 正在搜集财务、政策、产业链数据...")
+                                st.write("🔗 Supply Chain Analyst: 正在深度分析产业链结构...")
+                                st.write("📊 Analyst: 正在进行六维度综合分析...")
+                                st.write("✍️ Writer: 正在撰写深度分析报告...")
+                                st.write("🔍 Reviewer: 正在进行质量审核...")
+                                try:
+                                    res = main.run_investment_analysis(
+                                        final_topic, sel_province, str(target_year), focus_prompt
+                                    )
+                                    st.session_state.ind_report = res
+                                    st.success("研报生成完成！")
+                                except Exception as e:
+                                    st.error(f"运行出错: {e}")
+                                finally:
+                                    # 停止日志捕获并保存日志
+                                    if HAS_LOG_CAPTURE:
+                                        log_capture.stop()
+                                        st.session_state.run_logs = log_capture.get_logs(max_lines=200)
     
         with col_display:
             if 'ind_report' in st.session_state:
                 with st.container():
                     # 显示报告统计
                     report_content = st.session_state.ind_report
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("报告字数", f"{len(report_content):,} 字符")
-                    with col2:
-                        table_count = report_content.count("|") // 10
-                        st.metric("数据表格", f"约 {table_count} 个")
-                    with col3:
-                        st.metric("生成时间", datetime.now().strftime("%H:%M:%S"))
+                    
+                    # 检查是否是PE级研报
+                    has_pe_score = 'pe_score' in st.session_state and st.session_state.pe_score > 0
+                    
+                    if has_pe_score:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("报告字数", f"{len(report_content):,} 字符")
+                        with col2:
+                            table_count = report_content.count("|") // 10
+                            st.metric("数据表格", f"约 {table_count} 个")
+                        with col3:
+                            pe_score = st.session_state.get('pe_score', 0)
+                            st.metric("PE级评分", f"{pe_score:.1f}/100")
+                        with col4:
+                            report_level = st.session_state.get('report_level', '')
+                            st.metric("研报等级", report_level)
+                    else:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("报告字数", f"{len(report_content):,} 字符")
+                        with col2:
+                            table_count = report_content.count("|") // 10
+                            st.metric("数据表格", f"约 {table_count} 个")
+                        with col3:
+                            st.metric("生成时间", datetime.now().strftime("%H:%M:%S"))
                     
                     st.divider()
                     
