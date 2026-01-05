@@ -480,16 +480,42 @@ def apply_console_css():
             color: var(--text-secondary) !important;
         }
         
-        /* 输入框样式 */
+        /* 输入框样式 - 增强可读性 */
         .stTextInput input, .stSelectbox select, .stTextArea textarea {
-            background-color: var(--bg-card) !important;
-            color: var(--text-primary) !important;
-            border: 1px solid var(--border-color) !important;
+            background-color: #1E293B !important;
+            color: #FFFFFF !important;
+            border: 1px solid rgba(59, 130, 246, 0.3) !important;
             border-radius: 8px !important;
+            font-size: 1rem !important;
         }
-        .stTextInput input:focus, .stSelectbox select:focus {
+        .stTextInput input::placeholder, .stTextArea textarea::placeholder {
+            color: #94A3B8 !important;
+        }
+        .stTextInput input:focus, .stSelectbox select:focus, .stTextArea textarea:focus {
             border-color: var(--primary-color) !important;
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+            background-color: #1E3A5F !important;
+        }
+        
+        /* 下拉框选项样式 */
+        .stSelectbox [data-baseweb="select"] {
+            background-color: #1E293B !important;
+        }
+        .stSelectbox [data-baseweb="select"] > div {
+            background-color: #1E293B !important;
+            color: #FFFFFF !important;
+        }
+        [data-baseweb="popover"] {
+            background-color: #1E293B !important;
+        }
+        [data-baseweb="menu"] {
+            background-color: #1E293B !important;
+        }
+        [role="option"] {
+            color: #FFFFFF !important;
+        }
+        [role="option"]:hover {
+            background-color: #2563EB !important;
         }
         
         /* 按钮样式 */
@@ -558,9 +584,30 @@ def apply_console_css():
             border: 1px solid rgba(239, 68, 68, 0.3) !important;
         }
         
-        /* 标题样式 */
+        /* 标题样式 - 增强可见性 */
         h1, h2, h3, h4, h5, h6 {
-            color: var(--text-primary) !important;
+            color: #FFFFFF !important;
+        }
+        
+        /* 所有文本内容确保可见 */
+        p, span, div, label {
+            color: #E2E8F0 !important;
+        }
+        
+        /* 侧边栏标签样式 */
+        section[data-testid="stSidebar"] label {
+            color: #E2E8F0 !important;
+            font-weight: 500 !important;
+        }
+        
+        /* Markdown内容样式 */
+        .stMarkdown, .stMarkdown p, .stMarkdown span {
+            color: #E2E8F0 !important;
+        }
+        
+        /* 列表项样式 */
+        li {
+            color: #E2E8F0 !important;
         }
         
         /* 分割线 */

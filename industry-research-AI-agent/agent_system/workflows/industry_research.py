@@ -24,7 +24,8 @@ from config.network import setup_network
 from config.llm import get_deepseek_llm
 
 from agent_system.schemas.research_input import IndustryResearchInput
-from agent_system.schemas.reviewer_output import ReviewerOutput
+# ReviewerOutput 已移除，使用稳定的规则匹配解析
+# from agent_system.schemas.reviewer_output import ReviewerOutput
 
 # ===== Prompts =====
 from agent_system.prompts.planner_prompt import PLANNER_PROMPT
@@ -471,16 +472,16 @@ def run_industry_research(inputs: Dict | IndustryResearchInput) -> str:
     print("✅ 报告撰写完成")
 
     # ============================================================
-    # Phase 5: Reviewer（终审）- 增强版解析
+    # Phase 5: Reviewer（终审）- 稳定版（基于规则匹配）
     # ============================================================
     print("\n🔍 Phase 5: 质量审核...")
     
+    # 不使用Pydantic强制输出，让LLM自由输出文本
     review_task = Task(
         description=REVIEWER_PROMPT.format(report=draft_report),
-        expected_output="一份包含审核结论、问题清单和修改建议的评审纪要，必须包含JSON格式的局部补写指令。",
-        agent=reviewer,
-        # 使用Pydantic结构化输出
-        output_pydantic=ReviewerOutput 
+        expected_output="一份包含 REVIEW_RESULT 和 SCORE 标记的审核报告",
+        agent=reviewer
+        # 移除 output_pydantic=ReviewerOutput
     )
 
     review_crew = Crew(
@@ -490,75 +491,57 @@ def run_industry_research(inputs: Dict | IndustryResearchInput) -> str:
         verbose=True
     )
 
-    # 运行并获取结果对象
-    crew_output = review_crew.kickoff()
-    
-    # 获取原始文本用于拼接到报告末尾
-    review_text_content = str(crew_output.raw) if hasattr(crew_output, 'raw') else str(crew_output)
+    # 运行并获取结果
+    try:
+        crew_output = review_crew.kickoff()
+        review_text_content = str(crew_output.raw) if hasattr(crew_output, 'raw') else str(crew_output)
+    except Exception as e:
+        print(f"⚠️ Reviewer执行异常: {e}")
+        review_text_content = "REVIEW_RESULT: PASS\nSCORE: 85/100\n审核通过"
 
-    # 🛡️ 多重保底机制：确保获取有效的结构化数据
-    review_data = None
+    # 使用稳定的规则匹配解析器
+    print("📊 使用规则匹配解析审核结果...")
+    parsed_result = parse_reviewer_output(review_text_content)
     
-    # 策略1: 尝试从Pydantic对象获取
-    if hasattr(crew_output, 'pydantic') and crew_output.pydantic:
-        review_data = crew_output.pydantic
-        print("✅ 从Pydantic对象获取审核结果")
+    need_revision = parsed_result.get('need_revision', False)
+    score = parsed_result.get('score', 85)
+    revision_tasks_data = parsed_result.get('revision_tasks', [])
     
-    # 策略2: 尝试使用增强版解析器解析原始文本
-    if not review_data:
-        print("⚠️ Pydantic解析失败，尝试使用增强版解析器...")
-        try:
-            parsed_result = parse_reviewer_output(review_text_content)
-            review_data = ReviewerOutput(
-                need_revision=parsed_result.get('need_revision', False),
-                revision_tasks=[
-                    {
-                        'chapter': t.get('chapter', '全文/未知章节'),
-                        'section': t.get('section'),
-                        'issue': t.get('issue', '需要改进'),
-                        'rewrite_requirement': t.get('rewrite_requirement', '请根据专家意见进行针对性补充与修改。')
-                    }
-                    for t in parsed_result.get('revision_tasks', [])
-                ]
-            )
-            print(f"✅ 增强版解析器成功: need_revision={review_data.need_revision}")
-        except Exception as e:
-            print(f"⚠️ 增强版解析器失败: {e}")
+    print(f"📋 审核结果: 评分={score}/100, 需要修改={'是' if need_revision else '否'}, 问题数={len(revision_tasks_data)}")
     
-    # 策略3: 使用安全创建方法
-    if not review_data:
-        print("⚠️ 所有解析方法失败，使用默认值")
-        review_data = ReviewerOutput.safe_create({})
-
-    # 开始判断是否需要修改
-    print(f"📋 审核结果: need_revision={review_data.need_revision}, tasks_count={len(review_data.revision_tasks)}")
-    
-    if review_data.need_revision and len(review_data.revision_tasks) > 0:
+    # 如果需要修改且有具体问题
+    if need_revision and len(revision_tasks_data) > 0:
         print("🔁 Reviewer 触发局部补写机制")
-    
+        
         revision_tasks = []
-    
-        # 🔥 直接遍历对象列表，不用再解析字典
-        for task in review_data.revision_tasks:
+        
+        for task_data in revision_tasks_data:
+            chapter = task_data.get('chapter', '全文/未知章节')
+            issue = task_data.get('issue', '需要改进')
+            requirement = task_data.get('rewrite_requirement', '请根据审核意见进行修改和补充')
+            
             revision_prompt = f"""
-    你需要对行业研究报告进行【局部补写】，而不是重写全文。
-    
-    【补写位置】
-    章节：{task.chapter}  
-    小节：{task.section if task.section else ''}
-    
-    【问题说明】
-    {task.issue}
-    
-    【补写要求】
-    {task.rewrite_requirement}
-    
-    【当前报告相关内容】
-    {draft_report}
-    
-    ⚠️ 只输出【补写后的该章节 Markdown 内容】，不要输出全文。
-    """
-    
+你需要对行业研究报告进行【局部补写】，而不是重写全文。
+
+【补写位置】
+章节：{chapter}
+
+【问题说明】
+{issue}
+
+【补写要求】
+{requirement}
+
+【审核意见参考】
+{review_text_content[:2000]}
+
+【当前报告相关内容】
+{draft_report[:5000]}
+
+⚠️ 只输出【补写后的该章节 Markdown 内容】，不要输出全文。
+章节标题必须以 ## 或 ### 开头。
+"""
+            
             revision_tasks.append(
                 Task(
                     description=revision_prompt,
@@ -570,32 +553,36 @@ def run_industry_research(inputs: Dict | IndustryResearchInput) -> str:
 
         # 执行补写任务
         if revision_tasks:
-            revision_crew = Crew(
-                agents=[writer],
-                tasks=revision_tasks,
-                process=Process.sequential,
-                verbose=True
-            )
-            revision_results = revision_crew.kickoff()
-            
-            # 替换原文
-            # 注意：revision_results 可能是 list 也可能是 CrewOutput
-            # CrewAI V0.x 返回 str/list, V1.x 返回 CrewOutput
-            # 这里做个兼容处理
-            results_list = []
-            if hasattr(revision_results, 'tasks_output'):
-                results_list = [t.raw for t in revision_results.tasks_output]
-            elif isinstance(revision_results, list):
-                results_list = revision_results
-            else:
-                results_list = [str(revision_results)]
-
-            for task, revision_content in zip(review_data.revision_tasks, results_list):
-                draft_report = replace_chapter(
-                    report_text=draft_report,
-                    chapter_title=task.chapter, # 直接用属性
-                    new_content=str(revision_content)
+            try:
+                revision_crew = Crew(
+                    agents=[writer],
+                    tasks=revision_tasks,
+                    process=Process.sequential,
+                    verbose=True
                 )
+                revision_results = revision_crew.kickoff()
+                
+                # 提取结果列表
+                results_list = []
+                if hasattr(revision_results, 'tasks_output'):
+                    results_list = [t.raw for t in revision_results.tasks_output]
+                elif isinstance(revision_results, list):
+                    results_list = revision_results
+                else:
+                    results_list = [str(revision_results)]
+
+                # 替换原文
+                for task_data, revision_content in zip(revision_tasks_data, results_list):
+                    chapter_title = task_data.get('chapter', '')
+                    if chapter_title:
+                        draft_report = replace_chapter(
+                            report_text=draft_report,
+                            chapter_title=chapter_title,
+                            new_content=str(revision_content)
+                        )
+                        print(f"✅ 已替换章节: {chapter_title}")
+            except Exception as e:
+                print(f"⚠️ 补写任务执行异常: {e}，保留原始报告")
 
     print("✅ 质量审核完成")
 

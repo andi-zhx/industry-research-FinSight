@@ -37,6 +37,13 @@ try:
 except ImportError:
     HAS_WORD_CONVERTER = False
 
+# 日志捕获工具
+try:
+    from utils.log_capture import get_log_capture, StreamlitLogDisplay
+    HAS_LOG_CAPTURE = True
+except ImportError:
+    HAS_LOG_CAPTURE = False
+
 # 后端入口（Facade）
 try:
     import main
@@ -386,6 +393,12 @@ def render_console_page():
                     if not HAS_BACKEND:
                         st.error("无法调用后端，请检查 main.py")
                     else:
+                        # 初始化日志捕获
+                        if HAS_LOG_CAPTURE:
+                            log_capture = get_log_capture()
+                            log_capture.clear()
+                            log_capture.start()
+                        
                         with st.status("正在调用多智能体团队...", expanded=True):
                             st.write("📋 Planner: 正在基于六大维度规划研究蓝图...")
                             st.write("🔍 Researcher: 正在搜集财务、政策、产业链数据...")
@@ -401,6 +414,11 @@ def render_console_page():
                                 st.success("研报生成完成！")
                             except Exception as e:
                                 st.error(f"运行出错: {e}")
+                            finally:
+                                # 停止日志捕获并保存日志
+                                if HAS_LOG_CAPTURE:
+                                    log_capture.stop()
+                                    st.session_state.run_logs = log_capture.get_logs(max_lines=200)
     
         with col_display:
             if 'ind_report' in st.session_state:
@@ -479,6 +497,28 @@ def render_console_page():
                                 st.warning(f"Word生成失败: {e}")
                         else:
                             st.info("💡 安装python-docx启用Word导出")
+                    
+                    st.divider()
+                    
+                    # 显示运行日志（如果有）
+                    if 'run_logs' in st.session_state and st.session_state.run_logs:
+                        with st.expander("📝 运行日志（点击展开查看后台详细日志）", expanded=False):
+                            log_text = '\n'.join(st.session_state.run_logs)
+                            st.markdown(f"""
+                            <div style="
+                                background-color: #0D1117;
+                                border: 1px solid #30363D;
+                                border-radius: 8px;
+                                padding: 1rem;
+                                font-family: 'JetBrains Mono', 'Consolas', monospace;
+                                font-size: 0.8rem;
+                                max-height: 400px;
+                                overflow-y: auto;
+                                color: #E6EDF3;
+                            ">
+                                <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{log_text}</pre>
+                            </div>
+                            """, unsafe_allow_html=True)
                     
                     st.divider()
                     
