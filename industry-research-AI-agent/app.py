@@ -23,6 +23,13 @@ import numpy as np
 import app_config as config
 import ui_styles as ui
 
+# PDF转换工具
+try:
+    from utils.pdf_converter import convert_md_to_pdf, HAS_WEASYPRINT
+    HAS_PDF_CONVERTER = HAS_WEASYPRINT
+except ImportError:
+    HAS_PDF_CONVERTER = False
+
 # 后端入口（Facade）
 try:
     import main
@@ -404,14 +411,40 @@ def render_console_page():
                     
                     st.divider()
                     
-                    # 下载按钮
-                    st.download_button(
-                        label="📥 下载 Markdown 报告",
-                        data=report_content,
-                        file_name=f"{target_year}_{sel_province}_{final_topic}_行业研究报告.md",
-                        mime="text/markdown",
-                        use_container_width=True
-                    )
+                    # 下载按钮区域
+                    col_md, col_pdf = st.columns(2)
+                    
+                    with col_md:
+                        st.download_button(
+                            label="📥 下载 Markdown",
+                            data=report_content,
+                            file_name=f"{target_year}_{sel_province}_{final_topic}_行业研究报告.md",
+                            mime="text/markdown",
+                            use_container_width=True
+                        )
+                    
+                    with col_pdf:
+                        if HAS_PDF_CONVERTER:
+                            try:
+                                pdf_bytes = convert_md_to_pdf(
+                                    md_content=report_content,
+                                    title=f"{final_topic}行业研究报告",
+                                    province=sel_province,
+                                    industry=final_topic,
+                                    year=str(target_year),
+                                    add_cover=True
+                                )
+                                st.download_button(
+                                    label="📄 下载 PDF",
+                                    data=pdf_bytes,
+                                    file_name=f"{target_year}_{sel_province}_{final_topic}_行业研究报告.pdf",
+                                    mime="application/pdf",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                st.warning(f"PDF生成失败: {e}")
+                        else:
+                            st.info("💡 安装weasyprint启用PDF导出")
                     
                     st.divider()
                     

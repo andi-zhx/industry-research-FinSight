@@ -47,7 +47,7 @@ from agent_system.prompts.reviewer_prompt import REVIEWER_PROMPT
 from agent_system.postprocess.planner_parser import parse_planner_output
 from agent_system.postprocess.researcher_parser import parse_researcher_output
 from agent_system.postprocess.analyst_parser import parse_analyst_output
-# from agent_system.postprocess.reviewer_parser import parse_reviewer_output
+from agent_system.postprocess.reviewer_parser import parse_reviewer_output
 
 # ===== Tools =====
 from agent_system.tools.tools_custom import (
@@ -471,15 +471,15 @@ def run_industry_research(inputs: Dict | IndustryResearchInput) -> str:
     print("✅ 报告撰写完成")
 
     # ============================================================
-    # Phase 5: Reviewer（终审）- Pydantic 结构化输出版
+    # Phase 5: Reviewer（终审）- 增强版解析
     # ============================================================
     print("\n🔍 Phase 5: 质量审核...")
     
     review_task = Task(
         description=REVIEWER_PROMPT.format(report=draft_report),
-        expected_output="一份包含审核结论、问题清单和修改建议的评审纪要。",
+        expected_output="一份包含审核结论、问题清单和修改建议的评审纪要，必须包含JSON格式的局部补写指令。",
         agent=reviewer,
-        # 🔥【核心修改】强制要求结构化输出，CrewAI 会自动处理格式验证
+        # 使用Pydantic结构化输出
         output_pydantic=ReviewerOutput 
     )
 
@@ -494,18 +494,46 @@ def run_industry_research(inputs: Dict | IndustryResearchInput) -> str:
     crew_output = review_crew.kickoff()
     
     # 获取原始文本用于拼接到报告末尾
-    review_text_content = str(crew_output.raw)
+    review_text_content = str(crew_output.raw) if hasattr(crew_output, 'raw') else str(crew_output)
 
-    # 获取结构化数据 (Pydantic 对象)
-    review_data = crew_output.pydantic
-
-    # 🛡️ 保底逻辑：万一 Pydantic 解析失败（极罕见），使用默认值
+    # 🛡️ 多重保底机制：确保获取有效的结构化数据
+    review_data = None
+    
+    # 策略1: 尝试从Pydantic对象获取
+    if hasattr(crew_output, 'pydantic') and crew_output.pydantic:
+        review_data = crew_output.pydantic
+        print("✅ 从Pydantic对象获取审核结果")
+    
+    # 策略2: 尝试使用增强版解析器解析原始文本
     if not review_data:
-        print("⚠️ 警告: Reviewer 未能生成有效的结构化数据，跳过自动修改。")
-        review_data = ReviewerOutput(need_revision=False, revision_tasks=[])
+        print("⚠️ Pydantic解析失败，尝试使用增强版解析器...")
+        try:
+            parsed_result = parse_reviewer_output(review_text_content)
+            review_data = ReviewerOutput(
+                need_revision=parsed_result.get('need_revision', False),
+                revision_tasks=[
+                    {
+                        'chapter': t.get('chapter', '全文/未知章节'),
+                        'section': t.get('section'),
+                        'issue': t.get('issue', '需要改进'),
+                        'rewrite_requirement': t.get('rewrite_requirement', '请根据专家意见进行针对性补充与修改。')
+                    }
+                    for t in parsed_result.get('revision_tasks', [])
+                ]
+            )
+            print(f"✅ 增强版解析器成功: need_revision={review_data.need_revision}")
+        except Exception as e:
+            print(f"⚠️ 增强版解析器失败: {e}")
+    
+    # 策略3: 使用安全创建方法
+    if not review_data:
+        print("⚠️ 所有解析方法失败，使用默认值")
+        review_data = ReviewerOutput.safe_create({})
 
     # 开始判断是否需要修改
-    if review_data.need_revision:
+    print(f"📋 审核结果: need_revision={review_data.need_revision}, tasks_count={len(review_data.revision_tasks)}")
+    
+    if review_data.need_revision and len(review_data.revision_tasks) > 0:
         print("🔁 Reviewer 触发局部补写机制")
     
         revision_tasks = []
