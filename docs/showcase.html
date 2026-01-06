@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinSight AI Agent v4.0 展示</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a365d;
+            --secondary-color: #4299e1;
+            --accent-color: #ed8936;
+            --success-color: #38a169;
+            --danger-color: #e53e3e;
+            --warning-color: #dd6b20;
+            --bg-gradient: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #2b6cb0 100%);
+            --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7fafc;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        /* 导航栏 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(26, 54, 93, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #4299e1, #667eea);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .version-badge {
+            background: linear-gradient(135deg, #38a169, #48bb78);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+        
+        .nav-links a:hover {
+            color: white;
+        }
+        
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--secondary-color);
+            transition: width 0.3s;
+        }
+        
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+        
+        /* Hero 区域 */
+        .hero {
+            background: var(--bg-gradient);
+            padding: 8rem 2rem 4rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .hero h1 {
+            color: white;
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.25rem;
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+        
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+            margin-top: 3rem;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        /* 通用区块样式 */
+        .section {
+            padding: 5rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .section-title h2 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .section-title p {
+            color: #718096;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* 项目概览 */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+        
+        .overview-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .overview-card h3 span {
+            font-size: 1.75rem;
+        }
+        
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        
+        .tech-tag {
+            background: linear-gradient(135deg, #edf2f7, #e2e8f0);
+            color: var(--primary-color);
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        /* 研究维度 */
+        .dimensions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .dimension-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            border-left: 4px solid var(--secondary-color);
+            transition: all 0.3s;
+        }
+        
+        .dimension-card:hover {
+            border-left-color: var(--accent-color);
+            transform: translateX(5px);
+        }
+        
+        .dimension-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            background: var(--secondary-color);
+            color: white;
+            border-radius: 50%;
+            font-weight: 700;
+            margin-right: 1rem;
+        }
+        
+        .dimension-card h4 {
+            display: inline;
+            font-size: 1.1rem;
+            color: var(--primary-color);
+        }
+        
+        .dimension-card p {
+            color: #718096;
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+        }
+        
+        .dimension-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .dimension-tag {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+        
+        /* 产业链分析 */
+        .supply-chain-section {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            padding: 5rem 2rem;
+        }
+        
+        .supply-chain-flow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 3rem 0;
+        }
+        
+        .chain-node {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            min-width: 200px;
+            box-shadow: var(--card-shadow);
+            position: relative;
+        }
+        
+        .chain-node.upstream {
+            border-top: 4px solid var(--danger-color);
+        }
+        
+        .chain-node.midstream {
+            border-top: 4px solid var(--warning-color);
+        }
+        
+        .chain-node.downstream {
+            border-top: 4px solid var(--success-color);
+        }
+        
+        .chain-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .chain-node h4 {
+            font-size: 1.25rem;
+            color: var(--primary-color);
+        }
+        
+        .chain-node p {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .chain-arrow {
+            font-size: 2rem;
+            color: #a0aec0;
+        }
+        
+        .chain-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .chain-detail-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .chain-detail-card h4 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .chain-detail-card.upstream h4 { color: var(--danger-color); }
+        .chain-detail-card.midstream h4 { color: var(--warning-color); }
+        .chain-detail-card.downstream h4 { color: var(--success-color); }
+        .chain-detail-card.value h4 { color: #805ad5; }
+        
+        .chain-detail-card ul {
+            list-style: none;
+        }
+        
+        .chain-detail-card li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #edf2f7;
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+        
+        .chain-detail-card li:last-child {
+            border-bottom: none;
+        }
+        
+        .chain-detail-card li::before {
+            content: '•';
+            margin-right: 0.5rem;
+            color: var(--secondary-color);
+        }
+        
+        /* 知识图谱展示 */
+        .knowledge-graph {
+            text-align: center;
+            margin: 3rem 0;
+        }
+        
+        .knowledge-graph img {
+            max-width: 100%;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+        }
+        
+        /* 图表区域 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .chart-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+        
+        /* 系统架构 */
+        .architecture-section {
+            background: var(--primary-color);
+            padding: 5rem 2rem;
+            color: white;
+        }
+        
+        .architecture-section .section-title h2 {
+            color: white;
+        }
+        
+        .architecture-section .section-title p {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .agents-flow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 3rem 0;
+        }
+        
+        .agent-node {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 140px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .agent-node:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .agent-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .agent-node h4 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .agent-node p {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+        
+        .agent-arrow {
+            font-size: 1.5rem;
+            opacity: 0.5;
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 3rem;
+        }
+        
+        .tool-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .tool-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .tool-icon {
+            font-size: 1.5rem;
+        }
+        
+        .tool-item h5 {
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .tool-item p {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        /* V4改进内容 */
+        .improvements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        
+        .improvement-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .improvement-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .improvement-card h3 span {
+            font-size: 1.5rem;
+        }
+        
+        .improvement-list {
+            list-style: none;
+        }
+        
+        .improvement-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .improvement-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .check-icon {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+        
+        /* 研报展示 */
+        .report-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 5rem 2rem;
+            color: white;
+        }
+        
+        .report-section .section-title h2 {
+            color: white;
+        }
+        
+        .report-section .section-title p {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .report-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            max-width: 900px;
+            margin: 0 auto;
+            color: #2d3748;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .report-header {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid #edf2f7;
+        }
+        
+        .report-icon {
+            font-size: 4rem;
+        }
+        
+        .report-info h3 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+        
+        .report-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .report-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .report-highlights {
+            margin: 2rem 0;
+        }
+        
+        .report-highlights h4 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .highlight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .highlight-item {
+            background: #f7fafc;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .highlight-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+        }
+        
+        .highlight-label {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-top: 0.25rem;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: linear-gradient(135deg, var(--secondary-color), #667eea);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 1.5rem;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(66, 153, 225, 0.4);
+        }
+        
+        /* 报告输出结构 */
+        .output-section {
+            background: #f7fafc;
+        }
+        
+        .output-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+        
+        .output-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .chapter-list {
+            list-style: none;
+        }
+        
+        .chapter-list li {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .chapter-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .chapter-number {
+            width: 30px;
+            height: 30px;
+            background: var(--secondary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 1rem;
+        }
+        
+        .chapter-list li.highlight .chapter-number {
+            background: var(--accent-color);
+        }
+        
+        .chapter-list li.highlight {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+        
+        .quality-metrics {
+            margin-top: 1.5rem;
+        }
+        
+        .metric-item {
+            margin-bottom: 1rem;
+        }
+        
+        .metric-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .metric-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .metric-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease-out;
+        }
+        
+        .metric-fill.blue { background: var(--secondary-color); }
+        .metric-fill.orange { background: var(--accent-color); }
+        .metric-fill.green { background: var(--success-color); }
+        
+        /* 页脚 */
+        footer {
+            background: var(--primary-color);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .footer-logo .logo-icon {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        .copyright {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .hero-stats {
+                gap: 1.5rem;
+            }
+            
+            .stat-item {
+                padding: 1rem 1.5rem;
+            }
+            
+            .stat-number {
+                font-size: 2rem;
+            }
+            
+            .section {
+                padding: 3rem 1rem;
+            }
+            
+            .section-title h2 {
+                font-size: 2rem;
+            }
+            
+            .overview-grid,
+            .dimensions-grid,
+            .charts-grid,
+            .improvements-grid,
+            .output-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .supply-chain-flow,
+            .agents-flow {
+                flex-direction: column;
+            }
+            
+            .chain-arrow,
+            .agent-arrow {
+                transform: rotate(90deg);
+            }
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">📊</div>
+            <span>FinSight AI Agent</span>
+            <span class="version-badge">v4.0</span>
+        </div>
+        <div class="nav-links">
+            <a href="#overview">项目概览</a>
+            <a href="#dimensions">研究维度</a>
+            <a href="#supply-chain">产业链分析</a>
+            <a href="#architecture">系统架构</a>
+            <a href="#improvements">V4升级</a>
+            <a href="#report">研报展示</a>
+        </div>
+    </nav>
+    
+    <!-- Hero 区域 -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>行业研究智能体 Agent</h1>
+            <p class="hero-subtitle">
+                基于多智能体协作的专业行业研究工具，覆盖六大研究维度，重点关注产业链深度分析，
+                助力私募股权基金投资决策
+            </p>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">研究维度</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">智能体协作</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">15000+</div>
+                    <div class="stat-label">字深度报告</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">10+</div>
+                    <div class="stat-label">专业工具</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 项目概览 -->
+    <section id="overview" class="section">
+        <div class="section-title">
+            <h2>项目概览</h2>
+            <p>为私募股权基金投资人打造的智能行业研究工具</p>
+        </div>
+        <div class="overview-grid">
+            <div class="card overview-card">
+                <h3><span>🎯</span>项目目标</h3>
+                <p>为私募股权基金投资人打造一个智能行业研究工具，通过多智能体协作自动生成专业级的行业深度研究报告，
+                重点关注产业链上下游结构梳理，识别各环节投资机会。</p>
+            </div>
+            <div class="card overview-card">
+                <h3><span>🔧</span>技术栈</h3>
+                <p>采用先进的AI技术栈，实现高效的行业研究自动化。</p>
+                <div class="tech-stack">
+                    <span class="tech-tag">CrewAI</span>
+                    <span class="tech-tag">LangChain</span>
+                    <span class="tech-tag">Streamlit</span>
+                    <span class="tech-tag">ChromaDB</span>
+                    <span class="tech-tag">OpenAI API</span>
+                    <span class="tech-tag">RAG</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 六大研究维度 -->
+    <section id="dimensions" class="section" style="background: #f7fafc;">
+        <div class="section-title">
+            <h2>六大研究维度</h2>
+            <p>基于专业投研方法论，覆盖行业研究的核心维度，确保报告的全面性和专业性</p>
+        </div>
+        <div class="dimensions-grid">
+            <div class="dimension-card">
+                <span class="dimension-number">1</span>
+                <h4>行业定义与边界</h4>
+                <p>这行业到底包含什么？不包含什么？</p>
+                <div class="dimension-tags">
+                    <span class="dimension-tag">行业协会定义</span>
+                    <span class="dimension-tag">NAICS代码</span>
+                    <span class="dimension-tag">一级分类</span>
+                </div>
+            </div>
+            <div class="dimension-card">
+                <span class="dimension-number">2</span>
+                <h4>市场规模与趋势</h4>
+                <p>现在多大？未来增长吗？为什么？</p>
+                <div class="dimension-tags">
+                    <span class="dimension-tag">中商/艾瑞报告</span>
+                    <span class="dimension-tag">CAGR分析</span>
+                    <span class="dimension-tag">渗透率</span>
+                </div>
+            </div>
+            <div class="dimension-card" style="border-left-color: var(--accent-color);">
+                <span class="dimension-number" style="background: var(--accent-color);">3</span>
+                <h4>产业链结构 ⭐</h4>
+                <p>谁是上游、中游、下游？谁赚钱？</p>
+                <div class="dimension-tags">
+                    <span class="dimension-tag">产业链图谱</span>
+                    <span class="dimension-tag">价值链分析</span>
+                    <span class="dimension-tag">投资机会</span>
+                </div>
+            </div>
+            <div class="dimension-card">
+                <span class="dimension-number">4</span>
+                <h4>典型玩家与格局</h4>
+                <p>龙头是谁？市占率如何？谁在扩张谁在退？</p>
+                <div class="dimension-tags">
+                    <span class="dimension-tag">企业官网</span>
+                    <span class="dimension-tag">招股书</span>
+                    <span class="dimension-tag">行研报告</span>
+                </div>
+            </div>
+            <div class="dimension-card">
+                <span class="dimension-number">5</span>
+                <h4>商业模式与变现</h4>
+                <p>谁付钱？怎么收费？毛利高吗？</p>
+                <div class="dimension-tags">
+                    <span class="dimension-tag">BM Canvas</span>
+                    <span class="dimension-tag">收入结构</span>
+                    <span class="dimension-tag">毛利率</span>
+                </div>
+            </div>
+            <div class="dimension-card">
+                <span class="dimension-number">6</span>
+                <h4>政策/科技/环境</h4>
+                <p>哪些政策在左右它？新科技有冲击吗？</p>
+                <div class="dimension-tags">
+                    <span class="dimension-tag">政策汇总</span>
+                    <span class="dimension-tag">技术趋势</span>
+                    <span class="dimension-tag">ESG</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 产业链深度分析 -->
+    <section id="supply-chain" class="supply-chain-section">
+        <div class="section-title">
+            <h2>产业链深度分析</h2>
+            <p>重点关注产业链上中下游结构，识别各环节投资机会，分析价值链分配</p>
+        </div>
+        
+        <div class="supply-chain-flow">
+            <div class="chain-node upstream">
+                <div class="chain-icon">🔼</div>
+                <h4>上游</h4>
+                <p>原材料/零部件</p>
+            </div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-node midstream">
+                <div class="chain-icon">⏺️</div>
+                <h4>中游</h4>
+                <p>制造/加工</p>
+            </div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-node downstream">
+                <div class="chain-icon">🔽</div>
+                <h4>下游</h4>
+                <p>应用/终端</p>
+            </div>
+        </div>
+        
+        <div class="chain-details" style="max-width: 1400px; margin: 0 auto;">
+            <div class="chain-detail-card upstream">
+                <h4>🔼 上游分析</h4>
+                <ul>
+                    <li>原材料供应商分析</li>
+                    <li>核心零部件供应商</li>
+                    <li>成本占比与价格传导</li>
+                    <li>国产化率与进口依赖</li>
+                    <li>"卡脖子"环节识别</li>
+                </ul>
+            </div>
+            <div class="chain-detail-card midstream">
+                <h4>⏺️ 中游分析</h4>
+                <ul>
+                    <li>核心制造环节</li>
+                    <li>技术壁垒分析</li>
+                    <li>产能分布与利用率</li>
+                    <li>竞争格局与市占率</li>
+                    <li>毛利率水平对比</li>
+                </ul>
+            </div>
+            <div class="chain-detail-card downstream">
+                <h4>🔽 下游分析</h4>
+                <ul>
+                    <li>终端应用场景</li>
+                    <li>各场景市场规模</li>
+                    <li>需求驱动因素</li>
+                    <li>客户结构分析</li>
+                    <li>增长潜力评估</li>
+                </ul>
+            </div>
+            <div class="chain-detail-card value">
+                <h4>💰 价值链分析</h4>
+                <ul>
+                    <li>利润在各环节分配</li>
+                    <li>议价能力分析</li>
+                    <li>价值洼地识别</li>
+                    <li>投资机会评估</li>
+                    <li>风险因素分析</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 知识图谱展示 -->
+        <div class="knowledge-graph" style="max-width: 1200px; margin: 3rem auto;">
+            <h3 style="color: var(--primary-color); margin-bottom: 1.5rem; font-size: 1.5rem;">上海创新药产业链知识图谱</h3>
+            <img src="supply_chain_diagram.png" alt="上海创新药产业链知识图谱">
+        </div>
+        
+        <!-- 交互式图表 -->
+        <div class="charts-grid" style="max-width: 1400px; margin: 3rem auto;">
+            <div class="chart-card">
+                <h4>📊 产业链价值分配</h4>
+                <div class="chart-container">
+                    <canvas id="valueDistributionChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h4>📈 市场规模增长趋势</h4>
+                <div class="chart-container">
+                    <canvas id="marketGrowthChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h4>🏥 治疗领域市场规模</h4>
+                <div class="chart-container">
+                    <canvas id="therapeuticAreasChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h4>💹 各环节毛利率对比</h4>
+                <div class="chart-container">
+                    <canvas id="grossMarginChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 系统架构 -->
+    <section id="architecture" class="architecture-section">
+        <div class="section-title">
+            <h2>系统架构</h2>
+            <p>基于CrewAI框架的多智能体协作架构，五大智能体分工协作</p>
+        </div>
+        
+        <h3 style="text-align: center; margin-bottom: 2rem; font-size: 1.25rem; opacity: 0.9;">五大智能体协作流程</h3>
+        
+        <div class="agents-flow">
+            <div class="agent-node">
+                <div class="agent-icon">📋</div>
+                <h4>Planner</h4>
+                <p>规划师</p>
+            </div>
+            <div class="agent-arrow">→</div>
+            <div class="agent-node">
+                <div class="agent-icon">🔍</div>
+                <h4>Researcher</h4>
+                <p>研究员</p>
+            </div>
+            <div class="agent-arrow">→</div>
+            <div class="agent-node">
+                <div class="agent-icon">📊</div>
+                <h4>Analyst</h4>
+                <p>分析师</p>
+            </div>
+            <div class="agent-arrow">→</div>
+            <div class="agent-node">
+                <div class="agent-icon">✍️</div>
+                <h4>Writer</h4>
+                <p>撰写员</p>
+            </div>
+            <div class="agent-arrow">→</div>
+            <div class="agent-node">
+                <div class="agent-icon">✅</div>
+                <h4>Reviewer</h4>
+                <p>审核员</p>
+            </div>
+        </div>
+        
+        <h3 style="text-align: center; margin: 3rem 0 2rem; font-size: 1.25rem; opacity: 0.9;">专业工具集</h3>
+        
+        <div class="tools-grid" style="max-width: 1200px; margin: 0 auto;">
+            <div class="tool-item">
+                <div class="tool-icon">🔗</div>
+                <div>
+                    <h5>SupplyChainSearchTool</h5>
+                    <p>产业链专项搜索</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">📜</div>
+                <div>
+                    <h5>PolicySearchTool</h5>
+                    <p>政策信息搜索</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">📈</div>
+                <div>
+                    <h5>MarketSizeSearchTool</h5>
+                    <p>市场规模搜索</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">🏢</div>
+                <div>
+                    <h5>CompanySearchTool</h5>
+                    <p>企业信息搜索</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">💼</div>
+                <div>
+                    <h5>BusinessModelSearchTool</h5>
+                    <p>商业模式搜索</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">📊</div>
+                <div>
+                    <h5>StockAnalysisTool</h5>
+                    <p>股票财务分析</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">📚</div>
+                <div>
+                    <h5>RAGSearchTool</h5>
+                    <p>本地知识库检索</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">📄</div>
+                <div>
+                    <h5>PDFReadTool</h5>
+                    <p>PDF文档读取</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon">🧮</div>
+                <div>
+                    <h5>FinancialCalculatorTool</h5>
+                    <p>财务计算（IRR/NPV）</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- V4改进内容 -->
+    <section id="improvements" class="section">
+        <div class="section-title">
+            <h2>V4.0 升级内容</h2>
+            <p>本次升级整合统一工作流，实现自动公司发现、数据图表生成和PE级专业分析</p>
+        </div>
+        
+        <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 3rem;">
+            <div class="stat-item" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                <div class="stat-number">20+</div>
+                <div class="stat-label">文件修改</div>
+            </div>
+            <div class="stat-item" style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white;">
+                <div class="stat-number">6</div>
+                <div class="stat-label">PE级专业模块</div>
+            </div>
+            <div class="stat-item" style="background: linear-gradient(135deg, #4facfe, #00f2fe); color: white;">
+                <div class="stat-number">5</div>
+                <div class="stat-label">结构性差距补齐</div>
+            </div>
+            <div class="stat-item" style="background: linear-gradient(135deg, #43e97b, #38f9d7); color: white;">
+                <div class="stat-number">L4</div>
+                <div class="stat-label">研报等级提升</div>
+            </div>
+        </div>
+        
+        <div class="improvements-grid">
+            <div class="improvement-card">
+                <h3><span>🔧</span>PE级专业模块</h3>
+                <ul class="improvement-list">
+                    <li><span class="check-icon">✓</span> data_anchoring.py - 锚定型数据框架</li>
+                    <li><span class="check-icon">✓</span> company_deep_dive.py - 标的深拆模块</li>
+                    <li><span class="check-icon">✓</span> valuation_framework.py - 估值与回报框架</li>
+                    <li><span class="check-icon">✓</span> micro_risk_analysis.py - 微观风险分析</li>
+                    <li><span class="check-icon">✓</span> contrarian_views.py - 反共识观点模块</li>
+                    <li><span class="check-icon">✓</span> pe_report_scorer.py - PE级研报评分器</li>
+                </ul>
+            </div>
+            <div class="improvement-card">
+                <h3><span>📊</span>数据可信度分层</h3>
+                <ul class="improvement-list">
+                    <li><span class="check-icon">✓</span> Tier 1: 统计局、央行、上市公司公告</li>
+                    <li><span class="check-icon">✓</span> Tier 2: Wind、Bloomberg、头部券商</li>
+                    <li><span class="check-icon">✓</span> Tier 3: 艾瑞、IDC、行业协会</li>
+                    <li><span class="check-icon">✓</span> Tier 4: 媒体报道、自行推算</li>
+                    <li><span class="check-icon">✓</span> 数据交叉验证机制</li>
+                </ul>
+            </div>
+            <div class="improvement-card">
+                <h3><span>💰</span>估值与回报框架</h3>
+                <ul class="improvement-list">
+                    <li><span class="check-icon">✓</span> PE/PS/PB/DCF/EV-EBITDA估值</li>
+                    <li><span class="check-icon">✓</span> 三种情景分析（乐观/中性/悲观）</li>
+                    <li><span class="check-icon">✓</span> IRR/MOIC计算</li>
+                    <li><span class="check-icon">✓</span> 赔率分析（上行vs下行）</li>
+                    <li><span class="check-icon">✓</span> 退出路径规划</li>
+                </ul>
+            </div>
+            <div class="improvement-card">
+                <h3><span>🎯</span>研报质量评分</h3>
+                <ul class="improvement-list">
+                    <li><span class="check-icon">✓</span> 数据可信度 - 25%权重</li>
+                    <li><span class="check-icon">✓</span> 标的深拆 - 20%权重</li>
+                    <li><span class="check-icon">✓</span> 估值与回报 - 20%权重</li>
+                    <li><span class="check-icon">✓</span> 风险分析 - 15%权重</li>
+                    <li><span class="check-icon">✓</span> 反共识观点 - 10%权重</li>
+                    <li><span class="check-icon">✓</span> 投资导向+写作质量 - 10%权重</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 报告输出结构 -->
+    <section class="section output-section">
+        <div class="section-title">
+            <h2>报告输出结构</h2>
+            <p>生成的深度研究报告包含完整的章节结构，满足投资决策需求</p>
+        </div>
+        <div class="output-grid">
+            <div class="card output-card">
+                <h3><span>📑</span>报告章节结构</h3>
+                <ol class="chapter-list">
+                    <li><span class="chapter-number">1</span>执行摘要</li>
+                    <li><span class="chapter-number">2</span>行业定义与边界</li>
+                    <li><span class="chapter-number">3</span>市场规模与趋势</li>
+                    <li class="highlight"><span class="chapter-number">4</span>产业链深度分析 ⭐</li>
+                    <li><span class="chapter-number">5</span>竞争格局分析</li>
+                    <li><span class="chapter-number">6</span>商业模式分析</li>
+                    <li><span class="chapter-number">7</span>政策与技术环境</li>
+                    <li><span class="chapter-number">8</span>投资建议与风险提示</li>
+                    <li><span class="chapter-number">9</span>附录：数据来源与免责声明</li>
+                </ol>
+            </div>
+            <div class="card output-card">
+                <h3><span>📊</span>报告质量指标</h3>
+                <div class="quality-metrics">
+                    <div class="metric-item">
+                        <div class="metric-label">
+                            <span>报告字数</span>
+                            <span>15,000+ 字</span>
+                        </div>
+                        <div class="metric-bar">
+                            <div class="metric-fill blue" style="width: 95%;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">
+                            <span>数据表格</span>
+                            <span>8+ 个</span>
+                        </div>
+                        <div class="metric-bar">
+                            <div class="metric-fill orange" style="width: 80%;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">
+                            <span>产业链章节</span>
+                            <span>3,000+ 字</span>
+                        </div>
+                        <div class="metric-bar">
+                            <div class="metric-fill green" style="width: 85%;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">
+                            <span>数据来源标注</span>
+                            <span>100%</span>
+                        </div>
+                        <div class="metric-bar">
+                            <div class="metric-fill blue" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">
+                            <span>PE级评分</span>
+                            <span>88/100 (L4级)</span>
+                        </div>
+                        <div class="metric-bar">
+                            <div class="metric-fill green" style="width: 88%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 研报展示 -->
+    <section id="report" class="report-section">
+        <div class="section-title">
+            <h2>最新研报展示</h2>
+            <p>由FinSight AI Agent v4.0自动生成的专业行业研究报告</p>
+        </div>
+        
+        <div class="report-card">
+            <div class="report-header">
+                <div class="report-icon">📄</div>
+                <div class="report-info">
+                    <h3>2025年上海市创新药行业研究报告</h3>
+                    <div class="report-meta">
+                        <span>📅 2026年01月06日</span>
+                        <span>📍 上海市</span>
+                        <span>🏥 创新药产业</span>
+                        <span>📊 PE级深度研究</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-highlights">
+                <h4>核心数据亮点</h4>
+                <div class="highlight-grid">
+                    <div class="highlight-item">
+                        <div class="highlight-value">730亿</div>
+                        <div class="highlight-label">2025E上海市场规模</div>
+                    </div>
+                    <div class="highlight-item">
+                        <div class="highlight-value">18%</div>
+                        <div class="highlight-label">上海占全国比重</div>
+                    </div>
+                    <div class="highlight-item">
+                        <div class="highlight-value">25:35:40</div>
+                        <div class="highlight-label">上中下游价值分配</div>
+                    </div>
+                    <div class="highlight-item">
+                        <div class="highlight-value">&lt;30%</div>
+                        <div class="highlight-label">上游国产化率</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-highlights">
+                <h4>核心投资观点</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 0.75rem 0; border-bottom: 1px solid #edf2f7;">
+                        <strong style="color: var(--danger-color);">▶ 上游国产替代：</strong>
+                        确定性最高的投资主线，聚焦高性能色谱填料、无血清培养基等
+                    </li>
+                    <li style="padding: 0.75rem 0; border-bottom: 1px solid #edf2f7;">
+                        <strong style="color: var(--warning-color);">▶ 中游平台型CXO：</strong>
+                        风险收益比最优，关注ADC、CGT、双抗等前沿技术平台
+                    </li>
+                    <li style="padding: 0.75rem 0;">
+                        <strong style="color: var(--success-color);">▶ 下游全球化龙头：</strong>
+                        精选具备商业化验证、全球权益的创新药企
+                    </li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="2025_上海市_创新药_行业研究报告.docx" class="download-btn" download>
+                    <span>📥</span>
+                    下载完整研报 (Word)
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 页脚 -->
+    <footer>
+        <div class="footer-logo">
+            <div class="logo-icon">📊</div>
+            <span style="font-size: 1.5rem; font-weight: 700;">FinSight AI Agent</span>
+        </div>
+        <p style="opacity: 0.8;">基于多智能体协作的专业行业研究工具</p>
+        <div class="footer-links">
+            <a href="#">v4.0</a>
+            <a href="#">CrewAI Framework</a>
+            <a href="#">六大研究维度</a>
+            <a href="#">产业链深度分析</a>
+            <a href="#">PE级专业模块</a>
+        </div>
+        <p class="copyright">© 2025 FinSight AI Agent | 内部机密系统 | 禁止外传</p>
+    </footer>
+    
+    <!-- Chart.js 图表脚本 -->
+    <script>
+        // 价值分配饼图
+        const valueCtx = document.getElementById('valueDistributionChart').getContext('2d');
+        new Chart(valueCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['上游 (原材料/设备)', '中游 (研发/服务)', '下游 (药企/应用)'],
+                datasets: [{
+                    data: [25, 35, 40],
+                    backgroundColor: ['#e53e3e', '#dd6b20', '#38a169'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const labels = {
+                                    '上游 (原材料/设备)': '毛利率: 70%-90%, 议价能力最强',
+                                    '中游 (研发/服务)': '毛利率: 45%-60%, 商业模式清晰',
+                                    '下游 (药企/应用)': '医保降价: 50%-60%, 利润向头部集中'
+                                };
+                                return context.label + ': ' + context.parsed + '% - ' + labels[context.label];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // 市场增长趋势图
+        const growthCtx = document.getElementById('marketGrowthChart').getContext('2d');
+        new Chart(growthCtx, {
+            type: 'bar',
+            data: {
+                labels: ['2021', '2022', '2023', '2024E', '2025E'],
+                datasets: [
+                    {
+                        label: '全国市场规模 (亿元)',
+                        data: [2150, 2580, 3050, 3520, 4050],
+                        backgroundColor: '#4299e1',
+                        borderRadius: 5,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: '上海市场规模 (亿元)',
+                        data: [350, 430, 520, 620, 730],
+                        backgroundColor: '#ed8936',
+                        borderRadius: 5,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: '上海占比 (%)',
+                        data: [16.3, 16.7, 17.0, 17.6, 18.0],
+                        type: 'line',
+                        borderColor: '#38a169',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#38a169',
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: '市场规模 (亿元)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        min: 15,
+                        max: 20,
+                        title: {
+                            display: true,
+                            text: '上海占比 (%)'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // 治疗领域市场规模图
+        const therapeuticCtx = document.getElementById('therapeuticAreasChart').getContext('2d');
+        new Chart(therapeuticCtx, {
+            type: 'bar',
+            data: {
+                labels: ['肿瘤', '自身免疫', '代谢疾病', '神经系统', '抗感染', '其他'],
+                datasets: [
+                    {
+                        label: '2023年 (亿元)',
+                        data: [1650, 380, 320, 180, 220, 300],
+                        backgroundColor: '#667eea'
+                    },
+                    {
+                        label: '2025E (亿元)',
+                        data: [2050, 580, 460, 300, 280, 380],
+                        backgroundColor: '#f56565'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const cagr = [11.5, 23.6, 19.9, 29.1, 12.9, 12.6];
+                                if (context.datasetIndex === 1) {
+                                    return 'CAGR: ' + cagr[context.dataIndex] + '%';
+                                }
+                                return '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: '市场规模 (亿元)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // 毛利率对比图
+        const marginCtx = document.getElementById('grossMarginChart').getContext('2d');
+        new Chart(marginCtx, {
+            type: 'bar',
+            data: {
+                labels: ['上游 (核心原材料)', '中游 (平台型CXO)', '中游 (传统CXO)', '下游 (创新药企)'],
+                datasets: [{
+                    label: '毛利率范围 (%)',
+                    data: [
+                        [70, 90],
+                        [45, 60],
+                        [30, 45],
+                        [15, 35]
+                    ].map(range => range[1] - range[0]),
+                    backgroundColor: ['#e53e3e', '#dd6b20', '#ed8936', '#38a169'],
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const ranges = [[70, 90], [45, 60], [30, 45], [15, 35]];
+                                const range = ranges[context.dataIndex];
+                                return '毛利率: ' + range[0] + '% - ' + range[1] + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '毛利率范围 (%)'
+                        },
+                        max: 30
+                    }
+                }
+            }
+        });
+        
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
